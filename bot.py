@@ -1,7 +1,9 @@
 import json
 import logging
+import sys
 
 from proxmoxer import ProxmoxAPI
+from proxmoxer.tools import Tasks
 from html import escape
 from uuid import uuid4
 
@@ -24,7 +26,7 @@ pve_token_value = os.getenv('PVE_TOKEN_VALUE')
 
 # two ways to login pve
 # 1. username and password, the only requirement is to make a request within 2 hours
-# prox = ProxmoxAPI(pve_ip, pve_user, password=pve_pwd, verify_ssl=False)
+#    proxmox = ProxmoxAPI(pve_ip, user=pve_user, password=pve_pwd, verify_ssl=False)
 # 2. user, token_name and token_value, The API Token allows stateless interaction
 
 proxmox = ProxmoxAPI(
@@ -51,28 +53,71 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /help is issued."""
-    await update.message.reply_text("/start - start \n \
+    await update.message.reply_text("\t /start - start \n \
                                     /help - show help \n \
                                     /get_status - get pve cluster status \n \
                                     /get_nodes - get all nodes \n \
-                                    /get_resources - get pve cluster resources")
+                                    /get_resources - get pve cluster resources \n \
+                                    /get_vm_status {node} {vmid} - get vm status \n \
+                                    /set_vm_start {node} {vmid} - start vm \n \
+                                    /set_vm_stop {node} {vmid} - stop vm ")
 
 
 async def get_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /start is issued."""
+    logger.info(sys._getframe().f_code.co_name)
     data = json.dumps(proxmox.cluster.status.get(), indent=4, separators=(',', ':'))
     await update.message.reply_text(data)
 
 
 async def get_nodes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /start is issued."""
+    logger.info(sys._getframe().f_code.co_name)
     data = json.dumps(proxmox.nodes.get(), indent=4, separators=(',', ':'))
     await update.message.reply_text(data)
 
 
 async def get_resources(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /start is issued."""
+    logger.info(sys._getframe().f_code.co_name)
     data = json.dumps(proxmox.cluster.resources.get(), indent=4, separators=(',', ':'))
+    await update.message.reply_text(data)
+
+
+async def get_vm_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send a message when the command /start is issued."""
+    nodeid = context.args[0]
+    vmid = context.args[1]
+    logger.info(sys._getframe().f_code.co_name + " nodeid: " + nodeid + " vmid: " + vmid)
+
+    data = json.dumps(proxmox.nodes(nodeid).qemu(vmid).status.current.get(), indent=4, separators=(',', ':'))
+    await update.message.reply_text(data)
+
+
+async def set_vm_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send a message when the command /start is issued."""
+    nodeid = context.args[0]
+    vmid = context.args[1]
+    logger.info(sys._getframe().f_code.co_name + " nodeid: " + nodeid + " vmid: " + vmid)
+
+    upid = proxmox.nodes(nodeid).qemu(vmid).status.start.post()
+    logger.info(sys._getframe().f_code.co_name + " upid: " + upid)
+    res = Tasks.blocking_status(proxmox, upid, timeout=300)
+    data = json.dumps(res, indent=4, separators=(',', ':'))
+    await update.message.reply_text(data)
+
+
+async def set_vm_stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send a message when the command /start is issued."""
+    nodeid = context.args[0]
+    vmid = context.args[1]
+    logger.info(sys._getframe().f_code.co_name + " nodeid: " + nodeid + " vmid: " + vmid)
+
+    upid = proxmox.nodes(nodeid).qemu(vmid).status.stop.post()
+    logger.info(sys._getframe().f_code.co_name + " upid: " + upid)
+
+    res = Tasks.blocking_status(proxmox, upid, timeout=300)
+    data = json.dumps(res, indent=4, separators=(',', ':'))
     await update.message.reply_text(data)
 
 
@@ -120,6 +165,9 @@ def main() -> None:
     application.add_handler(CommandHandler("get_status", get_status))
     application.add_handler(CommandHandler("get_nodes", get_nodes))
     application.add_handler(CommandHandler("get_resources", get_resources))
+    application.add_handler(CommandHandler("get_vm_status", get_vm_status))
+    application.add_handler(CommandHandler("set_vm_start", set_vm_start))
+    application.add_handler(CommandHandler("set_vm_stop", set_vm_stop))
 
     # on inline queries - show corresponding inline results
     application.add_handler(InlineQueryHandler(inline_query))
