@@ -159,7 +159,7 @@ async def error_handler(update: Update, context: ContextTypes.context):
 def main() -> None:
     """Run the bot."""
     # Create the Application and pass it your bot's token.
-    application = Application.builder().token(bot_token).http_version("1.1").get_updates_http_version("1.1").build()
+    application = Application.builder().token(bot_token).build()
 
     # on different commands - answer in Telegram
     # command should be low letter!
