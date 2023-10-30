@@ -153,10 +153,13 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await update.inline_query.answer(results)
 
 
+async def error_handler(update: Update, context: ContextTypes.context):
+    logger.error(">>>>>>>>>>>", exc_info=context.error)
+
 def main() -> None:
     """Run the bot."""
     # Create the Application and pass it your bot's token.
-    application = Application.builder().token(bot_token).build()
+    application = Application.builder().token(bot_token).build().http_version("1.1").get_updates_http_version("1.1")
 
     # on different commands - answer in Telegram
     # command should be low letter!
@@ -172,6 +175,7 @@ def main() -> None:
     # on inline queries - show corresponding inline results
     application.add_handler(InlineQueryHandler(inline_query))
 
+    application.add_error_handler(error_handler)
     # Run the bot until the user presses Ctrl-C
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
