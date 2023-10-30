@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from telegram import InlineQueryResultArticle, InputTextMessageContent, Update
 from telegram.constants import ParseMode
-from telegram.ext import Application, CommandHandler, ContextTypes, InlineQueryHandler
+from telegram.ext import Application, ApplicationBuilder, CommandHandler, ContextTypes, InlineQueryHandler
 
 import os
 import urllib3
@@ -23,6 +23,8 @@ pve_pwd = os.getenv('PVE_PWD', default="123456")
 
 pve_token = os.getenv('PVE_TOKEN_NAME')
 pve_token_value = os.getenv('PVE_TOKEN_VALUE')
+
+proxy_url = os.getenv('HTTP_PROXY')
 
 # two ways to login pve
 # 1. username and password, the only requirement is to make a request within 2 hours
@@ -159,7 +161,10 @@ async def error_handler(update: Update, context: ContextTypes.context):
 def main() -> None:
     """Run the bot."""
     # Create the Application and pass it your bot's token.
-    application = Application.builder().token(bot_token).build()
+    if proxy_url is not None:
+        application = ApplicationBuilder().token(bot_token).proxy_url(proxy_url).get_updates_proxy_url(proxy_url).build()
+    else:
+        application = Application.builder().token(bot_token).build()
 
     # on different commands - answer in Telegram
     # command should be low letter!
